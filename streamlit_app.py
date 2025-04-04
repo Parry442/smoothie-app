@@ -31,33 +31,31 @@ try:
         ingredients_string = ' '.join(ingredients_list)  # Join selected ingredients into a single string
         for fruit_chosen in ingredients_list:
             try:
-                # Format fruit name for API
-                fruit_api_name = fruit_chosen.lower().replace(' ', '-')
-                fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_api_name}")
-                fruityvice_response.raise_for_status()
-
-                # Parse and display fruit nutrition info
-                fruit_info = fruityvice_response.json()
-                st.subheader(f"{fruit_chosen} Nutrition Information")
-                st.dataframe(data=[fruit_info], use_container_width=True)
-
+                # Make API request to get details about each fruit
+                fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
+                fruityvice_response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
+                
+                if fruityvice_response.status_code == 200:
+                    fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+                else:
+                    st.warning(f"Failed to fetch details for {fruit_chosen}")
+            
             except requests.exceptions.RequestException as e:
-                st.warning(f"Failed to fetch details for {fruit_chosen}: {str(e)}")
+                st.error(f"Failed to fetch details for {fruit_chosen}: {str(e)}")
 
-        # Submit button for placing order
-        time_to_insert = st.button("Submit Order")
+        # SQL statement to insert order into database (assuming proper handling of SQL injection risk)
+        my_insert_stmt = """INSERT INTO smoothies.public.orders(ingredients, name_on_order)
+                            VALUES ('{}', '{}')""".format(ingredients_string, name_on_order)
+
+        # Button to submit order
+        time_to_insert = st.button('Submit Order')
         if time_to_insert:
-            if not name_on_order.strip():
-                st.error("Please enter a name for your smoothie.")
-            else:
-                try:
-                    session.table("smoothies.public.orders").insert([
-                        {"INGREDIENTS": ingredients_string, "NAME_ON_ORDER": name_on_order}
-                    ])
-                    st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
-                except Exception as e:
-                    st.error(f"Failed to submit your order: {str(e)}")
-
+            try:
+                # Execute SQL insert statement
+                session.sql(my_insert_stmt).collect()
+                st.success('Your Smoothie is ordered, ' + name_on_order + '!', icon="✅")
+            except Exception as e:
+                st.error(f"Failed to submit order: {str(e)}")
 
 except Exception as ex:
     st.error(f"An error occurred: {str(ex)}")
