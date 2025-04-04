@@ -32,6 +32,7 @@ try:
         for fruit_chosen in ingredients_list:
             try:
                 # Make API request to get details about each fruit
+                fruit_api_name = fruit_chosen.lower().replace(' ', '-')
                 fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
                 fruityvice_response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
                 
